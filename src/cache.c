@@ -113,11 +113,12 @@ void cache_open_fs_dir(cache_t* cache, const char* directory)
 	char** index_files = (char**)malloc(sizeof(char*)*num_indices);
 	int i = 0;
 	while (!list_empty(&index_list->list)) {
-		index_list_node_t* node = list_front(&index_list->list);
+		list_node_t* node = list_front(&index_list->list);
+		index_list_node_t* index_node = container_of(node, index_list_node_t, node);
 		index_files[i] = (char*)malloc(sizeof(char)*256);
-		sprintf(index_files[i++], "%s/%s", directory, (char*)node->index);
+		sprintf(index_files[i++], "%s/%s", directory, (char*)index_node->index);
 		list_erase(&index_list->list, node);
-		free(node);
+		free(index_node);
 	}
 	object_free(index_list);
 	closedir(dir);
