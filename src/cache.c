@@ -39,32 +39,49 @@ struct index_list_node {
 	char index[256];
 };
 
+/**
+ * Initializes a new cache_t
+ */
 static void cache_init(cache_t* cache)
 {
-
+	cache->num_files = 0;
+	cache->files = 0;
 }
 
+/**
+ * Cleans up a cache_t
+ */
 static void cache_free(cache_t* cache)
 {
-	free(cache->num_files);
-	for (int i = 0; i < cache->num_indices; i++) {
-		for (int x = 0; x < cache->num_files[i]; x++) {
-			cache_file_t* file = &cache->files[i][x];
-			if (file->data != NULL) {
-				free(file->data);
-			}
-		}
-		free(cache->files[i]);
+	if (cache->num_files != 0) {
+		free(cache->num_files);
 	}
-	free(cache->files);
+	if (cache->files != 0) {
+		for (int i = 0; i < cache->num_indices; i++) {
+			for (int x = 0; x < cache->num_files[i]; x++) {
+				cache_file_t* file = &cache->files[i][x];
+				if (file->data != NULL) {
+					free(file->data);
+				}
+			}
+			free(cache->files[i]);
+		}
+		free(cache->files);
+	}
 }
 
+/**
+ * A wrapper around strcmp that operates on 'list_node_t's
+ */
 static int strcmp_wrap(list_node_t* a, list_node_t* b) {
 	index_list_node_t* nodeA = container_of(a, index_list_node_t, node);
 	index_list_node_t* nodeB = container_of(b, index_list_node_t, node);
 	return strcmp((const char*)nodeA->index, (const char*)nodeB->index);
 }
 
+/**
+ * Opens a directory in cache fs form (ie. client cached index + data files)
+ */
 void cache_open_fs_dir(cache_t* cache, const char* directory)
 {
 	DIR *dir = opendir(directory);
@@ -113,6 +130,9 @@ void cache_open_fs_dir(cache_t* cache, const char* directory)
 	free(index_files);
 }
 
+/**
+ * Opens a cache fs from memory (ie. client cached index + data files)
+ */
 void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, const char* data_file)
 {
 	cache->num_indices = num_indices;
@@ -162,6 +182,10 @@ void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, co
 	object_free(&data_blocks);
 }
 
+/**
+ * Generates a checksum file for a given index and stores it in a cache_file_t
+ *  - file: Where to store the checksum file
+ */
 void cache_gen_crc(cache_t* cache, int index, cache_file_t* file)
 {
 	int num_files = cache->num_files[index];
@@ -183,6 +207,9 @@ void cache_gen_crc(cache_t* cache, int index, cache_file_t* file)
 	file->file_size = buf_len;
 }
 
+/**
+ * Accesses a file within the cache
+ */
 cache_file_t* cache_get_file(cache_t* cache, int index, int file)
 {
 	if (index > cache->num_indices || file > cache->num_files[index]) {
@@ -191,6 +218,9 @@ cache_file_t* cache_get_file(cache_t* cache, int index, int file)
 	return &cache->files[index][file];
 }
 
+/**
+ * Extracts the cached file from a cache fs
+ */
 static void cache_fs_get(codec_t* data_indices, codec_t* data_blocks, int index_id, int file_id, cache_file_t* cache_file)
 {
 	int num_files = data_indices->length/INDEX_ENTRY_SIZE;
