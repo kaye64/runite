@@ -31,7 +31,7 @@
 #define DATA_BLOCK_SIZE 520
 #define INDEX_ENTRY_SIZE 6
 
-static void cache_fs_get(codec_t* data_indices, codec_t* data_blocks, int index_id, int file_id, cache_file_t* cache_file);
+static void cache_fs_get(codec_t* data_indices, codec_t* data_blocks, int index_id, int file_id, file_t* cache_file);
 
 typedef struct index_list_node index_list_node_t;
 struct index_list_node {
@@ -59,7 +59,7 @@ static void cache_free(cache_t* cache)
 	if (cache->files != 0) {
 		for (int i = 0; i < cache->num_indices; i++) {
 			for (int x = 0; x < cache->num_files[i]; x++) {
-				cache_file_t* file = &cache->files[i][x];
+				file_t* file = &cache->files[i][x];
 				if (file->data != NULL) {
 					free(file->data);
 				}
@@ -157,7 +157,7 @@ void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, co
 
 	/* Read the indices into memory */
 	cache->num_files = (int*)calloc(sizeof(int), num_indices);
-	cache->files = (cache_file_t**)malloc(sizeof(cache_file_t*)*num_indices);
+	cache->files = (file_t**)malloc(sizeof(file_t*)*num_indices);
 	data_indices = (codec_t*)malloc(sizeof(codec_t)*num_indices);
 	for (int i = 0; i < num_indices; i++) {
 		FILE* index_fd = fopen(index_files[i], "r");
@@ -167,7 +167,7 @@ void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, co
 		object_init(codec, &data_indices[i]);
 		codec_resize(&data_indices[i], index_size);
 		cache->num_files[i] = index_size / INDEX_ENTRY_SIZE;
-		cache->files[i] = (cache_file_t*)malloc(sizeof(cache_file_t)*cache->num_files[i]);
+		cache->files[i] = (file_t*)malloc(sizeof(file_t)*cache->num_files[i]);
 
 		fseek(index_fd, 0, SEEK_SET);
 		fread(data_indices[i].data, INDEX_ENTRY_SIZE, cache->num_files[i], index_fd);
@@ -184,10 +184,10 @@ void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, co
 }
 
 /**
- * Generates a checksum file for a given index and stores it in a cache_file_t
+ * Generates a checksum file for a given index and stores it in a file_t
  *  - file: Where to store the checksum file
  */
-void cache_gen_crc(cache_t* cache, int index, cache_file_t* file)
+void cache_gen_crc(cache_t* cache, int index, file_t* file)
 {
 	int num_files = cache->num_files[index];
 	size_t num_crcs = (num_files+1);
@@ -196,22 +196,22 @@ void cache_gen_crc(cache_t* cache, int index, cache_file_t* file)
 	/* calculate the crc table */
 	crc_buf[num_files] = 1234;
 	for (int i = 0; i < num_files; i++) {
-		cache_file_t* file = cache_get_file(cache, index, i);
+		file_t* file = cache_get_file(cache, index, i);
 		crc_buf[i] = crc32(0L, Z_NULL, 0);
-		crc_buf[i] = crc32(crc_buf[i], (const unsigned char*)file->data, file->file_size);
+		crc_buf[i] = crc32(crc_buf[i], (const unsigned char*)file->data, file->length);
 		crc_buf[num_files] = (crc_buf[num_files] << 1) + crc_buf[i];
 		crc_buf[i] = htonl(crc_buf[i]);
 	}
 	crc_buf[num_files] = htonl(crc_buf[num_files]);
 	file->data = (unsigned char*)malloc(buf_len);
 	memcpy(file->data, (char*)&crc_buf, buf_len);
-	file->file_size = buf_len;
+	file->length = buf_len;
 }
 
 /**
  * Accesses a file within the cache
  */
-cache_file_t* cache_get_file(cache_t* cache, int index, int file)
+file_t* cache_get_file(cache_t* cache, int index, int file)
 {
 	if (index > cache->num_indices || file > cache->num_files[index]) {
 		return NULL;
@@ -222,7 +222,7 @@ cache_file_t* cache_get_file(cache_t* cache, int index, int file)
 /**
  * Extracts the cached file from a cache fs
  */
-static void cache_fs_get(codec_t* data_indices, codec_t* data_blocks, int index_id, int file_id, cache_file_t* cache_file)
+static void cache_fs_get(codec_t* data_indices, codec_t* data_blocks, int index_id, int file_id, file_t* cache_file)
 {
 	int num_files = data_indices->length/INDEX_ENTRY_SIZE;
 	if (file_id < 0 || file_id > num_files) {
@@ -231,14 +231,14 @@ static void cache_fs_get(codec_t* data_indices, codec_t* data_blocks, int index_
 
 	codec_seek(data_indices, file_id*INDEX_ENTRY_SIZE);
 
-	cache_file->file_size = codec_get24fp(data_indices, NULL, 0);
+	cache_file->length = codec_get24fp(data_indices, NULL, 0);
 	int current_block = codec_get24fp(data_indices, NULL, 0);
 	int write_caret = 0;
-	int to_read = cache_file->file_size;
+	int to_read = cache_file->length;
 	int file_part = 0;
 	int num_blocks = data_blocks->length/DATA_BLOCK_SIZE;
 
-	cache_file->data = (unsigned char*)malloc(cache_file->file_size);
+	cache_file->data = (unsigned char*)malloc(cache_file->length);
 
 	while (current_block != 0) {
 		if (current_block <= 0 || current_block > num_blocks) {
@@ -273,7 +273,7 @@ static void cache_fs_get(codec_t* data_indices, codec_t* data_blocks, int index_
 	}
 	goto exit;
 error:
-	cache_file->file_size = 0;
+	cache_file->length = 0;
 	cache_file->data = NULL;
 exit:
 	return;

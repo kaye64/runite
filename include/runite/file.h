@@ -15,32 +15,13 @@
  *  along with Gem.  If not, see <http://www.gnu.org/licenses/\>.
  */
 
-#ifndef _CACHE_H_
-#define _CACHE_H_
+#ifndef _FILE_H_
+#define _FILE_H_
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-
-#include <runite/util/object.h>
-#include <runite/file.h>
-
-typedef struct cache cache_t;
-
-struct cache {
-	object_t object;
-	int num_indices;
-	int* num_files;
-	bool must_free;
-	file_t** files;
+typedef struct file file_t;
+struct file {
+	size_t length;
+	unsigned char* data;
 };
 
-extern object_proto_t cache_proto;
-
-void cache_open_fs_dir(cache_t* cache, const char* directory);
-void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, const char* data_file);
-
-file_t* cache_get_file(cache_t* cache, int index, int file);
-void cache_gen_crc(cache_t* cache, int index, file_t* file);
-
-#endif /* _CACHE_H_ */
+#endif /* _FILE_H_ */
