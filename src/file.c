@@ -17,6 +17,7 @@
 
 #include <runite/file.h>
 
+#include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -36,4 +37,18 @@ bool file_read(file_t* file, const char* path)
 	}
 	fclose(fd);
 	return true;
+}
+
+/**
+ * Cleanly joins two file paths together
+ */
+void file_path_join(char* path_a, char* path_b, char* out)
+{
+	sprintf(out, "%s/%s", path_a, path_b);
+	/* remove any duplicate separators */
+	for (char* p = out; *p != '\0'; p++) {
+		if (*p == '/' && *(p+1) == '/') {
+			strcpy(p, p+1);
+		}
+	}
 }

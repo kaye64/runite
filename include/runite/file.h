@@ -28,5 +28,6 @@ struct file {
 };
 
 bool file_read(file_t* file, const char* path);
+void file_path_join(char* path_a, char* path_b, char* out);
 
 #endif /* _FILE_H_ */
