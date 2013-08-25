@@ -16,4 +16,6 @@ $(OUT): $(OBJECTS)
 	gcc -c $(CFLAGS) $(INCLUDE_DIRS) -o $@ $^
 
 clean:
-	rm $(OUT) $(OBJECTS)
+	-rm -f $(OUT) $(OBJECTS)
+
+.PHONY: all clean
