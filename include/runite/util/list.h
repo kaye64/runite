@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #include <runite/util/object.h>
+#include <runite/util/container_of.h>
 
 typedef struct list_node list_node_t;
 typedef struct list list_t;
