@@ -24,9 +24,9 @@
  * This is just a variant of the function given in Brian W. Kernighan's
  * book 'The Practice of Programming'.
  */
-uint32_t jagex_hash(char* string)
+jhash_t jagex_hash(char* string)
 {
-	uint32_t h = 0;
+	jhash_t h = 0;
 	for (uint8_t* p = (uint8_t*)string; *p != '\0'; p++) {
 		h = (MULTIPLIER * h + *p) - 32;
 	}

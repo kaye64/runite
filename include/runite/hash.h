@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
-uint32_t jagex_hash(char* string);
+typedef uint32_t jhash_t;
+
+jhash_t jagex_hash(char* string);
 
 #endif /* _HASH_H_ */
