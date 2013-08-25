@@ -15,18 +15,25 @@
  *  along with Gem.  If not, see <http://www.gnu.org/licenses/\>.
  */
 
-#ifndef _FILE_H_
-#define _FILE_H_
+#include <runite/file.h>
 
-#include <stdlib.h>
-#include <stdbool.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
-typedef struct file file_t;
-struct file {
-	size_t length;
-	unsigned char* data;
-};
-
-bool file_read(file_t* file, const char* path);
-
-#endif /* _FILE_H_ */
+bool file_read(file_t* file, const char* path)
+{
+	struct stat fstat;
+	if (stat(path, &fstat) != 0) {
+		return false;
+	}
+	file->data = (unsigned char*)malloc(fstat.st_size);
+	file->length = fstat.st_size;
+	FILE* fd = fopen(path, "r");
+	if (fread(file->data, 1, file->length, fd) != file->length) {
+		fclose(fd);
+		free(file->data);
+		return false;
+	}
+	fclose(fd);
+	return true;
+}
