@@ -46,7 +46,6 @@ extern object_proto_t archive_proto;
 
 #define ARCHIVE_COMPRESS_FILE 0
 #define ARCHIVE_COMPRESS_WHOLE 1
-#define ARCHIVE_COMPRESS_OPTIMIZE 2
 
 bool archive_decompress(archive_t* archive, file_t* data);
 bool archive_compress(archive_t* archive, file_t* out_file, uint8_t scheme);
