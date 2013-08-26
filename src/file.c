@@ -21,6 +21,9 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+/**
+ * Read a file from disk into a file_t
+ */
 bool file_read(file_t* file, const char* path)
 {
 	struct stat fstat;
@@ -30,9 +33,30 @@ bool file_read(file_t* file, const char* path)
 	file->data = (unsigned char*)malloc(fstat.st_size);
 	file->length = fstat.st_size;
 	FILE* fd = fopen(path, "r");
+	if (!fd) {
+		free(file->data);
+		return false;
+	}
 	if (fread(file->data, 1, file->length, fd) != file->length) {
 		fclose(fd);
 		free(file->data);
+		return false;
+	}
+	fclose(fd);
+	return true;
+}
+
+/**
+ * Write a file_t to disk
+ */
+bool file_write(file_t* file, const char* path)
+{
+	FILE* fd = fopen(path, "w+");
+	if (!fd) {
+		return false;
+	}
+	if (fwrite(file->data, 1, file->length, fd) != file->length) {
+		fclose(fd);
 		return false;
 	}
 	fclose(fd);
