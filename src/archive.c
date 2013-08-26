@@ -73,6 +73,9 @@ static bool bz2_headerless_compress(unsigned char* src, uint32_t src_len, unsign
 
 	while (ret != BZ_STREAM_END) {
 		ret = BZ2_bzCompress(&stream, BZ_FINISH);
+		if (stream.avail_out == 0) {
+			goto error;
+		}
 	}
 
 	/* remove the header */
@@ -121,9 +124,11 @@ static bool bz2_headerless_decompress(unsigned char* src, uint32_t src_len, unsi
 	stream.next_out = (char*)dest;
 	stream.avail_out = *dest_len;
 
-	ret = BZ2_bzDecompress(&stream);
-	if (ret != BZ_OK && ret != BZ_STREAM_END) {
-		goto error;
+	while (ret != BZ_STREAM_END) {
+		ret = BZ2_bzDecompress(&stream);
+		if (ret != BZ_OK && ret != BZ_STREAM_END) {
+			goto error;
+		}
 	}
 
 	/* finish up */
@@ -153,7 +158,7 @@ bool archive_decompress(archive_t* archive, file_t* data)
 	uint32_t final_len = codec_get24(arc_codec);
 	uint32_t container_len = codec_get24(arc_codec);
 	bool compressed = true;
-	
+
 	if (container_len != final_len) { /* The entire container is compressed */
 		compressed = false;
 
@@ -161,7 +166,7 @@ bool archive_decompress(archive_t* archive, file_t* data)
 		uint32_t decompressed_len = final_len;
 		codec_t* new_codec = object_new(codec);
 		codec_resize(new_codec, final_len);
-		bool success = bz2_headerless_decompress(data->data, data->length, new_codec->data, &decompressed_len);
+		bool success = bz2_headerless_decompress(data->data+6, container_len, new_codec->data, &decompressed_len);
 		if (decompressed_len != final_len) {
 			object_free(new_codec);
 			goto error;
@@ -193,14 +198,14 @@ bool archive_decompress(archive_t* archive, file_t* data)
 		/* locate file data */
 		if (compressed) {
 			uint32_t decompressed_len = final_file_len;
-			bool success = bz2_headerless_decompress(data->data+file_ofs, actual_file_len, file->file.data, &decompressed_len);
+			bool success = bz2_headerless_decompress(arc_codec->data+file_ofs, actual_file_len, file->file.data, &decompressed_len);
 			if (!success) {
 				free(file->file.data);
 				free(file);
 				goto error;
 			}
 		} else {
-			memcpy(file->file.data, data->data+file_ofs, final_file_len);
+			memcpy(file->file.data, arc_codec->data+file_ofs, final_file_len);
 		}
 
 		/* add it to our list */
@@ -274,24 +279,23 @@ bool archive_compress(archive_t* archive, file_t* out_file, uint8_t scheme)
 	uint32_t final_arc_length = index_block_length+data_block_length;
 	uint32_t actual_arc_length = final_arc_length;
 	unsigned char* contents_block = (unsigned char*)malloc(final_arc_length);
+
+	memcpy(contents_block, index_codec->data, index_block_length);
+	memcpy(contents_block+index_block_length, data_codec->data, data_block_length);
+
+	/* compress the container if necessary */
 	if (scheme == ARCHIVE_COMPRESS_WHOLE) {
-		uint32_t idx_compressed_len = index_block_length;
-		uint32_t data_compressed_len = data_block_length;
-		bool success = bz2_headerless_compress(index_codec->data, index_block_length, contents_block, &idx_compressed_len);
+		unsigned char* tmp_buf = (unsigned char*)malloc(final_arc_length);
+		bool success = bz2_headerless_compress(contents_block, final_arc_length, tmp_buf, &actual_arc_length);
 		if (!success) {
+			free(tmp_buf);
 			free(contents_block);
 			goto error;
 		}
-		success = bz2_headerless_compress(data_codec->data, data_block_length, contents_block+idx_compressed_len, &data_compressed_len);
-		if (!success) {
-			free(contents_block);
-			goto error;
-		}
-		actual_arc_length = idx_compressed_len+data_compressed_len;
-	} else {
-		memcpy(contents_block, index_codec->data, index_block_length);
-		memcpy(contents_block+index_block_length, data_codec->data, data_block_length);
+		memcpy(contents_block, tmp_buf, actual_arc_length);
+		free(tmp_buf);
 	}
+	
 	object_free(index_codec);
 	object_free(data_codec);
 
