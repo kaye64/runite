@@ -37,7 +37,7 @@ struct cache {
 
 extern object_proto_t cache_proto;
 
-void cache_open_fs_dir(cache_t* cache, const char* directory);
+int cache_open_fs_dir(cache_t* cache, const char* directory);
 void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, const char* data_file);
 
 file_t* cache_get_file(cache_t* cache, int index, int file);

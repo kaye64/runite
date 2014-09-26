@@ -82,7 +82,7 @@ static int strcmp_wrap(list_node_t* a, list_node_t* b) {
 /**
  * Opens a directory in cache fs form (ie. client cached index + data files)
  */
-void cache_open_fs_dir(cache_t* cache, const char* directory)
+int cache_open_fs_dir(cache_t* cache, const char* directory)
 {
 	DIR *dir = opendir(directory);
 	struct dirent *entry;
@@ -91,7 +91,7 @@ void cache_open_fs_dir(cache_t* cache, const char* directory)
 	sorted_list_t* index_list = object_new(sorted_list);
 	index_list->compare_func = strcmp_wrap;
 	if (dir == NULL) {
-		return;
+		return 1;
 	}
 
 	char data_file[256];
@@ -107,7 +107,7 @@ void cache_open_fs_dir(cache_t* cache, const char* directory)
 	}
 
 	if (data_file == NULL || num_indices == 0) {
-		return;
+		return 1;
 	}
 
 	char** index_files = (char**)malloc(sizeof(char*)*num_indices);
@@ -123,12 +123,14 @@ void cache_open_fs_dir(cache_t* cache, const char* directory)
 	object_free(index_list);
 	closedir(dir);
 
-	cache_open_fs(cache, num_indices, (const char**)index_files, data_file);	
+	cache_open_fs(cache, num_indices, (const char**)index_files, data_file);
 
 	for (int i = 0; i < num_indices; i++) {
 		free(index_files[i]);
 	}
 	free(index_files);
+
+	return 0;
 }
 
 /**
@@ -174,12 +176,12 @@ void cache_open_fs(cache_t* cache, int num_indices, const char** index_files, co
 		fclose(index_fd);
 
 		for (int x = 0; x < cache->num_files[i]; x++) {
-			cache_fs_get(&data_indices[i], &data_blocks, i, x, &cache->files[i][x]);			
+			cache_fs_get(&data_indices[i], &data_blocks, i, x, &cache->files[i][x]);
 		}
 
 		object_free(&data_indices[i]);
 	}
-	
+
 	object_free(&data_blocks);
 }
 
